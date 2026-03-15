@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Zap } from "lucide-react";
-import type { PerfilUsuario } from "@/types/synapse";
+import type { PerfilUsuario, Usuario } from "@/types/synapse";
 
 // Demo users for testing without API
 const DEMO_USERS: Record<string, { nome: string; perfil: PerfilUsuario }> = {
@@ -30,8 +30,26 @@ export default function Login() {
 
     try {
       const response = await apiClient.login({ email, senha });
-      login(response.token, response.usuario);
-      navigate("/");
+      const token = response.token || response.access_token;
+      const usuarioFromPayload = (response.usuario || response.user) as Usuario | undefined;
+      const usuarioFromRoot =
+        response.perfil && response.nome
+          ? ({
+            id: response.id ?? 0,
+            email: response.email ?? email,
+            nome: response.nome,
+            perfil: response.perfil,
+          } as Usuario)
+          : undefined;
+      const usuario = usuarioFromPayload || usuarioFromRoot;
+
+      if (token && usuario) {
+        login(token, usuario);
+        navigate("/", { replace: true });
+        return;
+      }
+
+      throw new Error("Resposta de login sem token ou usuário válido");
     } catch {
       // Fallback: demo mode
       const demo = DEMO_USERS[email];
@@ -46,7 +64,7 @@ export default function Login() {
           title: "Login realizado (modo demo)",
           description: `Bem-vindo, ${demo.nome}!`,
         });
-        navigate("/");
+        navigate("/", { replace: true });
       } else {
         toast({
           variant: "destructive",

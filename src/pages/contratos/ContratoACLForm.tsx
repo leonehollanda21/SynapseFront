@@ -26,6 +26,9 @@ export default function ContratoACLForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [documentoFile, setDocumentoFile] = useState<File | null>(null);
+  const [tipoDocumento, setTipoDocumento] = useState("Contrato PDF");
+  const [descricaoDocumento, setDescricaoDocumento] = useState("");
 
   const [form, setForm] = useState({
     unidade_id: 1,
@@ -83,7 +86,30 @@ export default function ContratoACLForm() {
 
     setLoading(true);
     try {
-      await apiClient.createContratoACL(form);
+      const contrato = await apiClient.createContratoACL(form);
+
+      if (documentoFile) {
+        const isPdf =
+          documentoFile.type === "application/pdf" ||
+          documentoFile.name.toLowerCase().endsWith(".pdf");
+
+        if (!isPdf) {
+          toast({
+            variant: "destructive",
+            title: "Apenas PDF é permitido para upload",
+          });
+          setLoading(false);
+          return;
+        }
+
+        await apiClient.uploadDocumento({
+          arquivo: documentoFile,
+          contrato_id: contrato.id,
+          tipo_documento: tipoDocumento,
+          descricao: descricaoDocumento || undefined,
+        });
+      }
+
       toast({ title: "Contrato ACL criado com sucesso!" });
       navigate("/contratos/acl");
     } catch (err: any) {
@@ -271,9 +297,8 @@ export default function ContratoACLForm() {
               Sazonalização Trimestral
             </h2>
             <span
-              className={`text-sm font-bold tabular-nums ${
-                sazonValid ? "text-emerald" : "text-destructive"
-              }`}
+              className={`text-sm font-bold tabular-nums ${sazonValid ? "text-emerald" : "text-destructive"
+                }`}
             >
               {(sazonTotal * 100).toFixed(1)}%
             </span>
@@ -314,6 +339,43 @@ export default function ContratoACLForm() {
               A soma deve ser exatamente 100%. Atual: {(sazonTotal * 100).toFixed(1)}%
             </p>
           )}
+        </div>
+
+        {/* Documento */}
+        <div className="bg-card border rounded-lg p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-foreground">Documento do Contrato (opcional)</h2>
+          <p className="text-xs text-muted-foreground">
+            O arquivo PDF será enviado após a criação do contrato e vinculado com metadados (RF1.3).
+          </p>
+
+          <div className="space-y-1.5">
+            <Label>Arquivo PDF</Label>
+            <Input
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Tipo do Documento</Label>
+              <Input
+                value={tipoDocumento}
+                onChange={(e) => setTipoDocumento(e.target.value)}
+                placeholder="Ex: Contrato PDF"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descrição</Label>
+              <Input
+                value={descricaoDocumento}
+                onChange={(e) => setDescricaoDocumento(e.target.value)}
+                placeholder="Descrição opcional"
+                maxLength={500}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Actions */}

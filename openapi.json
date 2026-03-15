@@ -1,0 +1,833 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Synapse Energy API",
+    "description": "API para gerenciamento de contratos de energia no Mercado Livre. Conformidade ANEEL/CCEE.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Synapse Energy Engineering",
+      "email": "api-support@synapse-energy.com"
+    },
+    "license": {
+      "name": "Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.synapse-energy.com/api",
+      "description": "Production"
+    },
+    {
+      "url": "http://localhost:8000/api",
+      "description": "Development"
+    }
+  ],
+  "securitySchemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "bearerFormat": "JWT",
+      "description": "JWT token com 24h de validade"
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/contratos-acl": {
+      "post": {
+        "summary": "Criar Contrato ACL",
+        "tags": ["Contratos ACL (RF1.1)"],
+        "description": "Cria novo contrato ACL com validações de sazonalização (100%) e volume CCEE (<= 500 MWh)",
+        "operationId": "createContratoACL",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContratoACLRequest"
+              },
+              "examples": {
+                "valid": {
+                  "value": {
+                    "unidade_id": 1,
+                    "fornecedor_id": 5,
+                    "data_inicio": "2024-01-01",
+                    "data_fim": "2024-12-31",
+                    "volume_mensal_mwh": 100.0,
+                    "preco_mwh": 250.50,
+                    "flexibilidade_min": 0.90,
+                    "flexibilidade_max": 1.10,
+                    "fonte_energia": "Renovável",
+                    "indexador_reajuste": "IPCA",
+                    "sazonalizacao_q1": 0.25,
+                    "sazonalizacao_q2": 0.25,
+                    "sazonalizacao_q3": 0.25,
+                    "sazonalizacao_q4": 0.25
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Contrato criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoACLResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de validação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "sazonalizacao_invalida": {
+                    "value": {
+                      "status": 400,
+                      "message": "Sazonalização inválida",
+                      "error_code": "SEASONALIZATION_INVALID_SUM",
+                      "details": "Soma deve ser 100% (recebido: 99%)"
+                    }
+                  },
+                  "volume_invalido": {
+                    "value": {
+                      "status": 400,
+                      "message": "Volume inválido",
+                      "error_code": "VOLUME_EXCEEDS_CCEE_LIMIT",
+                      "details": "Máximo 500 MWh"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "Permissão insuficiente (requer Analista ou Admin)"
+          }
+        }
+      },
+      "get": {
+        "summary": "Listar Contratos ACL",
+        "tags": ["Contratos ACL (RF1.1)"],
+        "operationId": "listContratosACL",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["Ativo", "Vencido", "Cancelado"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de contratos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContratoACLResponse"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos-acl/{id}": {
+      "get": {
+        "summary": "Obter Contrato ACL",
+        "tags": ["Contratos ACL (RF1.1)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do contrato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoACLDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato não encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Editar Contrato ACL",
+        "tags": ["Contratos ACL (RF1.1)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContratoACLRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contrato atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoACLResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Contrato vencido não pode ser editado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Cancelar Contrato ACL",
+        "tags": ["Contratos ACL (RF1.1)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contrato cancelado"
+          }
+        }
+      }
+    },
+    "/fornecedores": {
+      "post": {
+        "summary": "Criar Fornecedor",
+        "tags": ["Fornecedores (RF1.4)"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFornecedorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Fornecedor criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FornecedorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de validação (CNPJ inválido, duplicado, etc)"
+          }
+        }
+      },
+      "get": {
+        "summary": "Listar Fornecedores",
+        "tags": ["Fornecedores (RF1.4)"],
+        "parameters": [
+          {
+            "name": "status_homologacao",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["Pendente", "Aprovado", "Reprovado"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de fornecedores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FornecedorResponse"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fornecedores/{id}/homologar": {
+      "post": {
+        "summary": "Homologar Fornecedor",
+        "tags": ["Fornecedores (RF1.4)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "observacoes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fornecedor aprovado"
+          }
+        }
+      }
+    },
+    "/fornecedores/{id}/rejeitar": {
+      "post": {
+        "summary": "Rejeitar Fornecedor",
+        "tags": ["Fornecedores (RF1.4)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": ["motivo"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fornecedor rejeitado"
+          }
+        }
+      }
+    },
+    "/documentos/upload": {
+      "post": {
+        "summary": "Upload de Documento",
+        "tags": ["Documentos (RF1.3)"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "arquivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Arquivo (max 10 MB)"
+                  },
+                  "contrato_id": {
+                    "type": "integer"
+                  },
+                  "tipo_documento": {
+                    "type": "string"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  }
+                },
+                "required": ["arquivo", "contrato_id", "tipo_documento"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Documento enviado"
+          },
+          "413": {
+            "description": "Arquivo muito grande (max 10 MB)"
+          }
+        }
+      }
+    },
+    "/alertas": {
+      "get": {
+        "summary": "Listar Alertas",
+        "tags": ["Alertas (RF1.5)"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["Ativo", "Acionado", "Resolvido", "Arquivado"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de alertas"
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar Alerta",
+        "tags": ["Alertas (RF1.5)"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAlertaRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Alerta criado"
+          }
+        }
+      }
+    },
+    "/alertas/{id}/acionar": {
+      "post": {
+        "summary": "Acionar Alerta",
+        "tags": ["Alertas (RF1.5)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Alerta acionado"
+          }
+        }
+      }
+    },
+    "/alertas/{id}/resolver": {
+      "post": {
+        "summary": "Resolver Alerta",
+        "tags": ["Alertas (RF1.5)"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "descricao_resolucao": {
+                    "type": "string"
+                  }
+                },
+                "required": ["descricao_resolucao"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Alerta resolvido"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateContratoACLRequest": {
+        "type": "object",
+        "required": [
+          "unidade_id",
+          "fornecedor_id",
+          "data_inicio",
+          "data_fim",
+          "volume_mensal_mwh",
+          "preco_mwh",
+          "flexibilidade_min",
+          "flexibilidade_max",
+          "fonte_energia",
+          "indexador_reajuste",
+          "sazonalizacao_q1",
+          "sazonalizacao_q2",
+          "sazonalizacao_q3",
+          "sazonalizacao_q4"
+        ],
+        "properties": {
+          "unidade_id": {
+            "type": "integer"
+          },
+          "fornecedor_id": {
+            "type": "integer"
+          },
+          "data_inicio": {
+            "type": "string",
+            "format": "date"
+          },
+          "data_fim": {
+            "type": "string",
+            "format": "date"
+          },
+          "volume_mensal_mwh": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 500
+          },
+          "preco_mwh": {
+            "type": "number",
+            "minimum": 0
+          },
+          "flexibilidade_min": {
+            "type": "number",
+            "minimum": 0.8,
+            "maximum": 1.0
+          },
+          "flexibilidade_max": {
+            "type": "number",
+            "minimum": 1.0,
+            "maximum": 1.2
+          },
+          "fonte_energia": {
+            "type": "string",
+            "enum": ["Convencional", "Incentivada", "Renovável"]
+          },
+          "indexador_reajuste": {
+            "type": "string",
+            "enum": ["IPCA", "IGPM"]
+          },
+          "sazonalizacao_q1": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sazonalizacao_q2": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sazonalizacao_q3": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sazonalizacao_q4": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "ContratoACLResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "unidade_id": {
+            "type": "integer"
+          },
+          "fornecedor_id": {
+            "type": "integer"
+          },
+          "data_inicio": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data_fim": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "volume_mensal_mwh": {
+            "type": "number"
+          },
+          "preco_mwh": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Ativo", "Vencido", "Cancelado"]
+          }
+        }
+      },
+      "ContratoACLDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ContratoACLResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "unidade": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "nome": {
+                    "type": "string"
+                  }
+                }
+              },
+              "fornecedor": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "razao_social": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "UpdateContratoACLRequest": {
+        "type": "object",
+        "properties": {
+          "volume_mensal_mwh": {
+            "type": "number"
+          },
+          "preco_mwh": {
+            "type": "number"
+          },
+          "sazonalizacao_q1": {
+            "type": "number"
+          },
+          "sazonalizacao_q2": {
+            "type": "number"
+          },
+          "sazonalizacao_q3": {
+            "type": "number"
+          },
+          "sazonalizacao_q4": {
+            "type": "number"
+          }
+        }
+      },
+      "CreateFornecedorRequest": {
+        "type": "object",
+        "required": ["razao_social", "cnpj", "tipo"],
+        "properties": {
+          "razao_social": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "cnpj": {
+            "type": "string",
+            "pattern": "^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": ["Distribuidora", "Comercializadora"]
+          },
+          "contato_nome": {
+            "type": "string"
+          },
+          "contato_email": {
+            "type": "string",
+            "format": "email"
+          },
+          "contato_telefone": {
+            "type": "string"
+          }
+        }
+      },
+      "FornecedorResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "razao_social": {
+            "type": "string"
+          },
+          "cnpj": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "status_homologacao": {
+            "type": "string",
+            "enum": ["Pendente", "Aprovado", "Reprovado"]
+          },
+          "data_criacao": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateAlertaRequest": {
+        "type": "object",
+        "required": ["tipo", "dias_antecipacao", "descricao"],
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": ["Vencimento", "Desvio", "Regulatorio"]
+          },
+          "contrato_id": {
+            "type": "integer"
+          },
+          "dias_antecipacao": {
+            "type": "integer"
+          },
+          "descricao": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "prioridade": {
+            "type": "string",
+            "enum": ["Baixa", "Média", "Alta", "Crítica"],
+            "default": "Média"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "skip": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
+

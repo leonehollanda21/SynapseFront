@@ -15,8 +15,15 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
-  usuario: Usuario;
+  token?: string;
+  access_token?: string;
+  token_type?: string;
+  perfil?: PerfilUsuario;
+  nome?: string;
+  id?: number;
+  email?: string;
+  usuario?: Usuario;
+  user?: Usuario;
 }
 
 export interface Usuario {
@@ -99,6 +106,46 @@ export interface ContratoCUSDDTO {
   status: StatusContrato;
   data_criacao: string;
   usuario_criador_id: number;
+}
+
+// ============ RF1.3 - DOCUMENTOS ============
+export interface UploadDocumentoRequest {
+  arquivo: File;
+  contrato_id: number;
+  tipo_documento: string;
+  descricao?: string;
+}
+
+export interface DocumentoDTO {
+  id: number;
+  arquivo_nome_original: string;
+  arquivo_nome_armazenado: string;
+  arquivo_tamanho_bytes: number;
+  arquivo_mime_type: string;
+  contrato_id: number;
+  tipo_documento: string;
+  descricao?: string;
+  url_download?: string;
+  metadados: {
+    enviado_por_usuario_id: number;
+    data_envio: string;
+    endereco_ip: string;
+    checksum_sha256: string;
+  };
+  alerta_expiracao: {
+    data_vencimento_contrato: string;
+    data_alerta_1_ano: string;
+    ativo: boolean;
+  };
+}
+
+// ============ RF1.5 - ALERTAS ============
+export interface AlertaDTO {
+  id: number;
+  titulo: string;
+  descricao: string;
+  status: "Ativo" | "Acionado" | "Resolvido" | "Arquivado";
+  data_criacao: string;
 }
 
 // ============ RF1.4 - FORNECEDORES ============

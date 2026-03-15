@@ -58,7 +58,12 @@ export default function ContratoCUSDForm() {
 
     setLoading(true);
     try {
-      await apiClient.createContratoCUSD(form);
+      const payload = {
+        ...form,
+        demanda_ponta_kw: form.demanda_ponta_kw,
+        demanda_fora_ponta_kw: form.demanda_fora_ponta_kw,
+      };
+      await apiClient.createContratoCUSD(payload);
       toast({ title: "Contrato CUSD criado com sucesso!" });
       navigate("/contratos/cusd");
     } catch (err: any) {
